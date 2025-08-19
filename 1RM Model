@@ -9,10 +9,7 @@ from sklearn.multioutput import MultiOutputRegressor
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import pickle
-import random
 import numpy as np
-
-import json
 
 def main(testing=False, save=False):
     # Load dataset
