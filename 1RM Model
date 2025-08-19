@@ -1,0 +1,68 @@
+import pandas as pd
+from xgboost import XGBRegressor
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from onnxmltools import convert_xgboost
+from onnxmltools.convert.common.data_types import FloatTensorType
+from sklearn.multioutput import MultiOutputRegressor
+from skl2onnx import convert_sklearn
+from skl2onnx.common.data_types import FloatTensorType
+import pickle
+import random
+import numpy as np
+
+import json
+
+def main(testing=False, save=False):
+    # Load dataset
+    data = pd.read_csv("data/StrengthLevel_data.csv")
+
+    # Preprocess gender column (one-hot encoding)
+    data = pd.get_dummies(data, columns=["Gender"], drop_first=True)  # Creates binary columns for gender
+
+    # Explicitly define metadata columns and exercise columns
+    metadata_columns = ["Bodyweight", "Gender_male"]  # Metadata columns (e.g., weight, gender)
+    exercise_columns = data.columns.difference(metadata_columns).drop('Index')  # All other columns are exercise data
+
+    # Prepare features (X) and targets (y)
+    X = data[metadata_columns + list(exercise_columns)] 
+    y = data[exercise_columns] 
+
+    # Replace NaN in features with -1 (placeholder for missing values)
+    X = X.fillna(-1)
+    y = y.fillna(y.mean())  # Replace NaN in targets with column means
+
+    # Split data into training and testing sets
+    if testing:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    else:
+        X_train, X_test, y_train, y_test = X, X, y, y
+
+    # Train a single multi-output model
+    base_model = XGBRegressor(objective="reg:squarederror", eval_metric="rmse")
+    multi_output_model = MultiOutputRegressor(base_model)
+    multi_output_model.fit(X_train, y_train)
+    print('Multi-output model trained successfully')
+
+    # Evaluate the model
+    if testing:
+        y_pred = multi_output_model.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred, multioutput="raw_values")  # MAE for each exercise
+        print("Mean Absolute Error (MAE) for each exercise:", mae)
+
+    # Save the model
+    if save:
+        # Save each XGBRegressor in the MultiOutputRegressor to JSON
+        for exercise_name, estimator in zip(y.columns, multi_output_model.estimators_):
+            # Define the JSON file path using the exercise name
+            json_file = f"data/{exercise_name}.json"
+            
+            # Export the XGBoost model to JSON format
+            estimator.save_model(json_file)
+            print(f"JSON model for exercise '{exercise_name}' saved as {json_file}")
+
+if __name__ == "__main__":
+    testing = False
+    save = True
+    main(testing, save)
