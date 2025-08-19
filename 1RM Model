@@ -53,14 +53,10 @@ def main(testing=False, save=False):
 
     # Save the model
     if save:
-        # Save each XGBRegressor in the MultiOutputRegressor to JSON
-        for exercise_name, estimator in zip(y.columns, multi_output_model.estimators_):
-            # Define the JSON file path using the exercise name
-            json_file = f"data/{exercise_name}.json"
-            
-            # Export the XGBoost model to JSON format
-            estimator.save_model(json_file)
-            print(f"JSON model for exercise '{exercise_name}' saved as {json_file}")
+        # Save the entire MultiOutputRegressor object
+        with open("data/multi_output_model.pkl", "wb") as f:
+            pickle.dump(multi_output_model, f)
+        print("Multi-output model saved as 'data/multi_output_model.pkl'")
 
 if __name__ == "__main__":
     testing = False
